@@ -1,7 +1,9 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const auth = vi.hoisted(() => ({ signIn: vi.fn(), signOut: vi.fn() }));
+const environment = vi.hoisted(() => ({ assertRuntimeEnvironment: vi.fn() }));
 vi.mock("@/auth", () => auth);
+vi.mock("@/config/env", () => environment);
 
 import {
   loginWithGoogle,
@@ -13,6 +15,7 @@ describe("ações de autenticação", () => {
 
   it("inicia login exclusivamente pelo Google", async () => {
     await loginWithGoogle();
+    expect(environment.assertRuntimeEnvironment).toHaveBeenCalledOnce();
     expect(auth.signIn).toHaveBeenCalledWith("google", {
       redirectTo: "/dashboard",
     });
@@ -20,6 +23,7 @@ describe("ações de autenticação", () => {
 
   it("encerra a sessão e retorna ao login", async () => {
     await logout();
+    expect(environment.assertRuntimeEnvironment).toHaveBeenCalledOnce();
     expect(auth.signOut).toHaveBeenCalledWith({ redirectTo: "/login" });
   });
 });

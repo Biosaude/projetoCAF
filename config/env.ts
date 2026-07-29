@@ -14,3 +14,15 @@ export type Environment = z.infer<typeof environmentSchema>;
 export function parseEnvironment(input: NodeJS.ProcessEnv): Environment {
   return environmentSchema.parse(input);
 }
+
+/**
+ * Validates secrets only when a server-side authentication operation runs.
+ *
+ * Next.js imports the Auth.js configuration while collecting route metadata
+ * during `next build`. Validating at module scope makes that compilation depend
+ * on production secrets, although no external service is contacted at build
+ * time. Runtime entry points must call this function before handling auth.
+ */
+export function assertRuntimeEnvironment(): Environment {
+  return parseEnvironment(process.env);
+}

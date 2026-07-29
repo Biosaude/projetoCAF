@@ -10,10 +10,7 @@ import { PrismaProvisioningRepository } from "@/features/authentication/reposito
 import { UserProvisioningService } from "@/features/authentication/services/user-provisioning.service";
 import { prisma } from "@/lib/db/prisma";
 import { logger } from "@/services";
-import { parseEnvironment } from "@/config/env";
 import { canUserSignIn } from "@/features/authentication/services/rbac.service";
-
-parseEnvironment(process.env);
 
 export const { handlers, auth, signIn, signOut } = NextAuth({
   ...authConfig,

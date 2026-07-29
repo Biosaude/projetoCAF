@@ -66,6 +66,10 @@ Para cada domínio usado em produção, cadastre `https://SEU_DOMINIO/api/auth/c
 
 O build usa uma URL PostgreSQL exclusivamente sintática durante `prisma generate` quando `DATABASE_URL` não existe. Ela não abre conexão e nunca substitui a credencial necessária em runtime.
 
+O Next.js pode coletar metadados das rotas sem segredos durante o build da Vercel. As variáveis obrigatórias continuam sendo validadas no início de cada operação server-side de autenticação; portanto, o deploy compila sem expor segredos ao build, mas login, logout e callbacks recusam execução quando a configuração de runtime está incompleta.
+
+Na Vercel, cadastre os nomes técnicos exatamente como aparecem na tabela abaixo — em especial `DATABASE_URL`, e não uma tradução como `URL_DO_BANCO_DE_DADOS`. Aplique-os a Production, Preview e Development conforme o ambiente e faça um novo deployment. Nenhum valor real deve ser salvo no Git.
+
 ### Promover o primeiro Administrador
 
 O sistema nunca promove automaticamente o primeiro usuário. Depois que a pessoa fizer o primeiro login e o usuário existir no banco, um operador com acesso ao ambiente deve executar deliberadamente:

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { parseEnvironment } from "@/config/env";
+import { assertRuntimeEnvironment, parseEnvironment } from "@/config/env";
 
 const validEnvironment = {
   NODE_ENV: "production",
@@ -26,6 +26,21 @@ describe("environment validation", () => {
   it("requires a strong Auth.js secret", () => {
     expect(() =>
       parseEnvironment({ ...validEnvironment, AUTH_SECRET: "short" }),
+    ).toThrow();
+  });
+
+  it("does not require runtime secrets during the official Next.js build phase", () => {
+    expect(() =>
+      assertRuntimeEnvironment({
+        NODE_ENV: "production",
+        NEXT_PHASE: "phase-production-build",
+      }),
+    ).not.toThrow();
+  });
+
+  it("does not bypass validation in a production runtime", () => {
+    expect(() =>
+      assertRuntimeEnvironment({ NODE_ENV: "production" }),
     ).toThrow();
   });
 });

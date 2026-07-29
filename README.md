@@ -66,7 +66,9 @@ Para cada domínio usado em produção, cadastre `https://SEU_DOMINIO/api/auth/c
 
 O build usa uma URL PostgreSQL exclusivamente sintática durante `prisma generate` quando `DATABASE_URL` não existe. Ela não abre conexão e nunca substitui a credencial necessária em runtime.
 
-O Next.js pode coletar metadados das rotas sem segredos durante o build da Vercel. As variáveis obrigatórias continuam sendo validadas no início de cada operação server-side de autenticação; portanto, o deploy compila sem expor segredos ao build, mas login, logout e callbacks recusam execução quando a configuração de runtime está incompleta.
+O Next.js pode coletar metadados das rotas sem segredos durante o build da Vercel. A rota Auth.js é dinâmica e a fase oficial `phase-production-build` não exige configuração de runtime. Em qualquer execução development, test ou production, as variáveis obrigatórias continuam sendo validadas no início de cada operação server-side; portanto, login, logout e callbacks recusam execução quando a configuração está incompleta.
+
+`NEXT_PHASE` é uma variável interna do Next.js e não deve ser cadastrada manualmente na Vercel.
 
 Na Vercel, cadastre os nomes técnicos exatamente como aparecem na tabela abaixo — em especial `DATABASE_URL`, e não uma tradução como `URL_DO_BANCO_DE_DADOS`. Aplique-os a Production, Preview e Development conforme o ambiente e faça um novo deployment. Nenhum valor real deve ser salvo no Git.
 

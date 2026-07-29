@@ -23,6 +23,13 @@ export function parseEnvironment(input: NodeJS.ProcessEnv): Environment {
  * on production secrets, although no external service is contacted at build
  * time. Runtime entry points must call this function before handling auth.
  */
-export function assertRuntimeEnvironment(): Environment {
-  return parseEnvironment(process.env);
+export function assertRuntimeEnvironment(
+  input: NodeJS.ProcessEnv = process.env,
+): void {
+  // Next.js may execute route handlers while collecting build metadata. Secrets
+  // are intentionally unavailable in that official build phase and are still
+  // mandatory for every development, test and production runtime invocation.
+  if (input.NEXT_PHASE === "phase-production-build") return;
+
+  parseEnvironment(input);
 }

@@ -1,6 +1,9 @@
 import { handlers } from "@/auth";
 import { assertRuntimeEnvironment } from "@/config/env";
 
+export const dynamic = "force-dynamic";
+export const runtime = "nodejs";
+
 export const GET = (...args: Parameters<typeof handlers.GET>) => {
   assertRuntimeEnvironment();
   return handlers.GET(...args);

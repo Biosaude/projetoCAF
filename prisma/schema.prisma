@@ -1,0 +1,702 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum QuotationStatus {
+  DRAFT
+  OPEN
+  CLOSED
+  RECEIVED
+  UNDER_REVIEW
+  MATERIALS_PENDING
+  PRICING_PENDING
+  READY_FOR_APPROVAL
+  APPROVED
+  REJECTED
+  SENT
+  CANCELLED
+}
+
+enum QuotationUrgency {
+  ROUTINE
+  URGENT
+  EMERGENCY
+}
+
+enum QuotationItemStatus {
+  PENDING_IDENTIFICATION
+  IDENTIFIED
+  NEEDS_REVIEW
+  UNAVAILABLE
+  PRICED
+  APPROVED
+  REJECTED
+}
+
+enum ProposalStatus {
+  DRAFT
+  UNDER_REVIEW
+  APPROVED
+  REJECTED
+  SENT
+  EXPIRED
+  CANCELLED
+}
+
+enum EmailStatus {
+  RECEIVED
+  PENDING
+  PROCESSING
+  PROCESSED
+  FAILED
+  ARCHIVED
+}
+
+enum EmailProvider {
+  GOOGLE
+  OTHER
+}
+
+enum AddressType {
+  HEADQUARTERS
+  BILLING
+  SHIPPING
+  OTHER
+}
+
+enum UnitOfMeasure {
+  UNIT
+  PAIR
+  KIT
+  BOX
+  PACKAGE
+  CENTIMETER
+  METER
+}
+
+enum CurrencyCode {
+  BRL
+  USD
+  EUR
+}
+
+enum UserStatus {
+  ACTIVE
+  INACTIVE
+  BLOCKED
+  PENDING
+}
+
+enum RoleKey {
+  ADMIN
+  MANAGER
+  ANALYST
+  VIEWER
+}
+
+enum AuditAction {
+  LOGIN
+  LOGOUT
+  FIRST_ACCESS
+  ROLE_CHANGED
+  STATUS_CHANGED
+  ACCESS_DENIED
+  ENTITY_CREATED
+  ENTITY_UPDATED
+  ENTITY_DEACTIVATED
+}
+
+model Organization {
+  id                 String              @id @default(cuid())
+  legalName          String
+  tradeName          String?
+  document           String?             @unique
+  email              String?
+  phone              String?
+  active             Boolean             @default(true)
+  users              User[]
+  hospitals          Hospital[]
+  insurances         Insurance[]
+  suppliers          Supplier[]
+  manufacturers      Manufacturer[]
+  materialCategories MaterialCategory[]
+  materials          Material[]
+  emails             EmailMessage[]
+  quotationRequests  QuotationRequest[]
+  proposals          QuotationProposal[]
+  auditLogs          AuditLog[]
+  createdAt          DateTime            @default(now())
+  updatedAt          DateTime            @updatedAt
+
+  @@index([active])
+  @@index([createdAt])
+}
+
+model User {
+  id                     String                   @id @default(cuid())
+  organizationId         String?
+  organization           Organization?            @relation(fields: [organizationId], references: [id], onDelete: SetNull)
+  name                   String?
+  email                  String                   @unique
+  emailVerified          DateTime?
+  image                  String?
+  status                 UserStatus               @default(PENDING)
+  lastLoginAt            DateTime?
+  lastLoginIp            String?
+  lastLoginUserAgent     String?
+  lastLoginBrowser       String?
+  lastLoginOs            String?
+  lastLoginProvider      String?
+  accounts               Account[]
+  sessions               Session[]
+  roles                  UserRole[]
+  auditLogs              AuditLog[]
+  assignedRequests       QuotationRequest[]       @relation("AssignedRequests")
+  createdProposals       QuotationProposal[]      @relation("ProposalCreator")
+  approvedProposals      QuotationProposal[]      @relation("ProposalApprover")
+  quotationStatusChanges QuotationStatusHistory[]
+  proposalStatusChanges  ProposalStatusHistory[]
+  createdAt              DateTime                 @default(now())
+  updatedAt              DateTime                 @updatedAt
+
+  @@index([organizationId])
+  @@index([status])
+  @@index([lastLoginAt])
+}
+
+model Role {
+  id          String           @id @default(cuid())
+  key         RoleKey          @unique
+  name        String           @unique
+  description String?
+  users       UserRole[]
+  permissions RolePermission[]
+  createdAt   DateTime         @default(now())
+  updatedAt   DateTime         @updatedAt
+}
+
+model Permission {
+  id          String           @id @default(cuid())
+  key         String           @unique
+  description String?
+  roles       RolePermission[]
+  createdAt   DateTime         @default(now())
+  updatedAt   DateTime         @updatedAt
+}
+
+model UserRole {
+  userId     String
+  roleId     String
+  assignedAt DateTime @default(now())
+  assignedBy String?
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  role       Role     @relation(fields: [roleId], references: [id], onDelete: Cascade)
+
+  @@id([userId, roleId])
+  @@index([roleId])
+}
+
+model RolePermission {
+  roleId       String
+  permissionId String
+  role         Role       @relation(fields: [roleId], references: [id], onDelete: Cascade)
+  permission   Permission @relation(fields: [permissionId], references: [id], onDelete: Cascade)
+
+  @@id([roleId, permissionId])
+  @@index([permissionId])
+}
+
+model AuditLog {
+  id             String        @id @default(cuid())
+  organizationId String?
+  organization   Organization? @relation(fields: [organizationId], references: [id], onDelete: SetNull)
+  action         AuditAction
+  entity         String
+  entityId       String?
+  before         Json?
+  after          Json?
+  metadata       Json?
+  ipAddress      String?
+  userAgent      String?
+  userId         String?
+  user           User?         @relation(fields: [userId], references: [id], onDelete: SetNull)
+  createdAt      DateTime      @default(now())
+
+  @@index([organizationId, createdAt])
+  @@index([entity, entityId])
+  @@index([userId])
+  @@index([action, createdAt])
+}
+
+model Account {
+  id                String  @id @default(cuid())
+  userId            String
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String?
+  access_token      String?
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String?
+  session_state     String?
+  user              User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+  @@index([userId])
+}
+
+model Session {
+  sessionToken String   @unique
+  userId       String
+  expires      DateTime
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+}
+
+model VerificationToken {
+  identifier String
+  token      String   @unique
+  expires    DateTime
+
+  @@unique([identifier, token])
+}
+
+model Hospital {
+  id                String              @id @default(cuid())
+  organizationId    String?
+  organization      Organization?       @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+  legalName         String              @map("name")
+  tradeName         String?
+  document          String?
+  internalCode      String?
+  email             String?
+  phone             String?
+  active            Boolean             @default(true)
+  addresses         HospitalAddress[]
+  insurances        HospitalInsurance[]
+  quotationRequests QuotationRequest[]
+  createdAt         DateTime            @default(now())
+  updatedAt         DateTime            @updatedAt
+
+  @@unique([organizationId, document])
+  @@unique([organizationId, internalCode])
+  @@index([organizationId, active])
+  @@index([createdAt])
+}
+
+model HospitalAddress {
+  id         String      @id @default(cuid())
+  hospitalId String
+  hospital   Hospital    @relation(fields: [hospitalId], references: [id], onDelete: Cascade)
+  type       AddressType @default(OTHER)
+  street     String
+  number     String
+  complement String?
+  district   String
+  city       String
+  state      String
+  postalCode String
+  country    String      @default("BR")
+  primary    Boolean     @default(false)
+  createdAt  DateTime    @default(now())
+  updatedAt  DateTime    @updatedAt
+
+  @@index([hospitalId, primary])
+}
+
+model Insurance {
+  id                String              @id @default(cuid())
+  organizationId    String?
+  organization      Organization?       @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+  name              String
+  code              String?
+  document          String?
+  email             String?
+  phone             String?
+  active            Boolean             @default(true)
+  hospitals         HospitalInsurance[]
+  quotationRequests QuotationRequest[]
+  createdAt         DateTime            @default(now())
+  updatedAt         DateTime            @updatedAt
+
+  @@unique([organizationId, code])
+  @@unique([organizationId, document])
+  @@index([organizationId, active])
+  @@index([createdAt])
+}
+
+model HospitalInsurance {
+  id           String    @id @default(cuid())
+  hospitalId   String
+  insuranceId  String
+  externalCode String?
+  active       Boolean   @default(true)
+  hospital     Hospital  @relation(fields: [hospitalId], references: [id], onDelete: Restrict)
+  insurance    Insurance @relation(fields: [insuranceId], references: [id], onDelete: Restrict)
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  @@unique([hospitalId, insuranceId])
+  @@index([insuranceId, active])
+}
+
+model Supplier {
+  id             String                  @id @default(cuid())
+  organizationId String?
+  organization   Organization?           @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+  legalName      String                  @map("name")
+  tradeName      String?
+  document       String?
+  internalCode   String?
+  email          String?
+  phone          String?
+  active         Boolean                 @default(true)
+  addresses      SupplierAddress[]
+  materials      SupplierMaterial[]
+  quotationItems QuotationItem[]
+  proposalItems  QuotationProposalItem[]
+  createdAt      DateTime                @default(now())
+  updatedAt      DateTime                @updatedAt
+
+  @@unique([organizationId, document])
+  @@unique([organizationId, internalCode])
+  @@index([organizationId, active])
+  @@index([createdAt])
+}
+
+model SupplierAddress {
+  id         String      @id @default(cuid())
+  supplierId String
+  supplier   Supplier    @relation(fields: [supplierId], references: [id], onDelete: Cascade)
+  type       AddressType @default(OTHER)
+  street     String
+  number     String
+  complement String?
+  district   String
+  city       String
+  state      String
+  postalCode String
+  country    String      @default("BR")
+  primary    Boolean     @default(false)
+  createdAt  DateTime    @default(now())
+  updatedAt  DateTime    @updatedAt
+
+  @@index([supplierId, primary])
+}
+
+model Manufacturer {
+  id             String       @id @default(cuid())
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+  name           String
+  document       String?
+  active         Boolean      @default(true)
+  brands         Brand[]
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+
+  @@unique([organizationId, name])
+  @@unique([organizationId, document])
+  @@index([organizationId, active])
+}
+
+model Brand {
+  id             String       @id @default(cuid())
+  manufacturerId String
+  manufacturer   Manufacturer @relation(fields: [manufacturerId], references: [id], onDelete: Restrict)
+  name           String
+  active         Boolean      @default(true)
+  materials      Material[]
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+
+  @@unique([manufacturerId, name])
+  @@index([active])
+}
+
+model MaterialCategory {
+  id             String             @id @default(cuid())
+  organizationId String
+  organization   Organization       @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+  name           String
+  description    String?
+  parentId       String?
+  parent         MaterialCategory?  @relation("CategoryTree", fields: [parentId], references: [id], onDelete: Restrict)
+  children       MaterialCategory[] @relation("CategoryTree")
+  active         Boolean            @default(true)
+  materials      Material[]
+  createdAt      DateTime           @default(now())
+  updatedAt      DateTime           @updatedAt
+
+  @@index([organizationId, active])
+  @@index([parentId])
+}
+
+model Material {
+  id                   String                  @id @default(cuid())
+  organizationId       String?
+  organization         Organization?           @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+  internalCode         String                  @map("code")
+  manufacturerCode     String?
+  name                 String
+  description          String?
+  technicalDescription String?
+  categoryId           String?
+  category             MaterialCategory?       @relation(fields: [categoryId], references: [id], onDelete: Restrict)
+  brandId              String?
+  brand                Brand?                  @relation(fields: [brandId], references: [id], onDelete: SetNull)
+  unitOfMeasure        UnitOfMeasure           @default(UNIT)
+  anvisaRegistration   String?
+  anvisaExpirationDate DateTime?
+  active               Boolean                 @default(true)
+  suppliers            SupplierMaterial[]
+  quotationItems       QuotationItem[]
+  proposalItems        QuotationProposalItem[]
+  createdAt            DateTime                @default(now())
+  updatedAt            DateTime                @updatedAt
+
+  @@unique([organizationId, internalCode])
+  @@index([organizationId, active])
+  @@index([categoryId])
+  @@index([brandId])
+  @@index([createdAt])
+}
+
+model SupplierMaterial {
+  id              String          @id @default(cuid())
+  supplierId      String
+  materialId      String
+  supplierCode    String
+  purchasePrice   Decimal         @db.Decimal(18, 4)
+  currency        CurrencyCode    @default(BRL)
+  minimumQuantity Int             @default(1)
+  leadTimeDays    Int?
+  validFrom       DateTime
+  validUntil      DateTime
+  active          Boolean         @default(true)
+  supplier        Supplier        @relation(fields: [supplierId], references: [id], onDelete: Restrict)
+  material        Material        @relation(fields: [materialId], references: [id], onDelete: Restrict)
+  quotationItems  QuotationItem[]
+  createdAt       DateTime        @default(now())
+  updatedAt       DateTime        @updatedAt
+
+  @@unique([supplierId, materialId, supplierCode, validFrom])
+  @@index([supplierId, active])
+  @@index([materialId, active])
+  @@index([validFrom, validUntil])
+}
+
+model EmailMessage {
+  id                String             @id @default(cuid())
+  organizationId    String?
+  organization      Organization?      @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+  provider          EmailProvider      @default(OTHER)
+  providerMessageId String?            @map("externalId")
+  providerThreadId  String?
+  sender            String
+  recipients        String[]           @default([])
+  subject           String
+  bodyText          String?
+  bodyHtml          String?
+  receivedAt        DateTime
+  processedAt       DateTime?
+  status            EmailStatus        @default(RECEIVED)
+  hasAttachments    Boolean            @default(false)
+  metadata          Json?
+  attachments       EmailAttachment[]
+  quotationRequests QuotationRequest[]
+  createdAt         DateTime           @default(now())
+  updatedAt         DateTime           @updatedAt
+
+  @@unique([organizationId, provider, providerMessageId])
+  @@index([organizationId, status])
+  @@index([providerMessageId])
+  @@index([receivedAt])
+}
+
+model EmailAttachment {
+  id                   String       @id @default(cuid())
+  emailMessageId       String
+  emailMessage         EmailMessage @relation(fields: [emailMessageId], references: [id], onDelete: Cascade)
+  providerAttachmentId String?
+  filename             String
+  mimeType             String
+  size                 Int
+  storageKey           String?
+  checksum             String?
+  createdAt            DateTime     @default(now())
+
+  @@index([emailMessageId])
+}
+
+model QuotationRequest {
+  id                 String                   @id @default(cuid())
+  organizationId     String?
+  organization       Organization?            @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+  requestNumber      String                   @map("code")
+  externalReference  String?
+  hospitalId         String?
+  hospital           Hospital?                @relation(fields: [hospitalId], references: [id], onDelete: SetNull)
+  insuranceId        String?
+  insurance          Insurance?               @relation(fields: [insuranceId], references: [id], onDelete: SetNull)
+  requestingDoctor   String?
+  patientReference   String?
+  surgeryDate        DateTime?
+  urgency            QuotationUrgency         @default(ROUTINE)
+  status             QuotationStatus          @default(RECEIVED)
+  receivedAt         DateTime                 @default(now())
+  dueAt              DateTime?
+  assignedToUserId   String?
+  assignedTo         User?                    @relation("AssignedRequests", fields: [assignedToUserId], references: [id], onDelete: SetNull)
+  sourceEmailId      String?                  @map("emailMessageId")
+  sourceEmail        EmailMessage?            @relation(fields: [sourceEmailId], references: [id], onDelete: SetNull)
+  notes              String?
+  cancelledAt        DateTime?
+  cancellationReason String?
+  items              QuotationItem[]
+  proposals          QuotationProposal[]
+  statusHistory      QuotationStatusHistory[]
+  createdAt          DateTime                 @default(now())
+  updatedAt          DateTime                 @updatedAt
+
+  @@unique([organizationId, requestNumber])
+  @@index([organizationId, status])
+  @@index([hospitalId])
+  @@index([insuranceId])
+  @@index([receivedAt])
+  @@index([dueAt])
+  @@index([assignedToUserId])
+  @@index([sourceEmailId])
+}
+
+model QuotationItem {
+  id                   String                  @id @default(cuid())
+  quotationRequestId   String
+  quotationRequest     QuotationRequest        @relation(fields: [quotationRequestId], references: [id], onDelete: Cascade)
+  materialId           String?
+  material             Material?               @relation(fields: [materialId], references: [id], onDelete: SetNull)
+  requestedDescription String                  @map("description")
+  requestedQuantity    Int                     @default(1) @map("quantity")
+  unitOfMeasure        UnitOfMeasure           @default(UNIT)
+  supplierId           String?
+  supplier             Supplier?               @relation(fields: [supplierId], references: [id], onDelete: SetNull)
+  supplierMaterialId   String?
+  supplierMaterial     SupplierMaterial?       @relation(fields: [supplierMaterialId], references: [id], onDelete: SetNull)
+  extractionConfidence Decimal?                @db.Decimal(5, 4)
+  matchingConfidence   Decimal?                @db.Decimal(5, 4)
+  status               QuotationItemStatus     @default(PENDING_IDENTIFICATION)
+  notes                String?
+  proposalItems        QuotationProposalItem[]
+  createdAt            DateTime                @default(now())
+  updatedAt            DateTime                @updatedAt
+
+  @@index([quotationRequestId, status])
+  @@index([materialId])
+  @@index([supplierId])
+  @@index([supplierMaterialId])
+}
+
+model QuotationProposal {
+  id                   String                  @id @default(cuid())
+  organizationId       String
+  organization         Organization            @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+  quotationRequestId   String
+  quotationRequest     QuotationRequest        @relation(fields: [quotationRequestId], references: [id], onDelete: Restrict)
+  proposalNumber       String
+  version              Int                     @default(1)
+  status               ProposalStatus          @default(DRAFT)
+  subtotal             Decimal                 @db.Decimal(18, 4)
+  taxes                Decimal                 @db.Decimal(18, 4)
+  logisticsCost        Decimal                 @db.Decimal(18, 4)
+  additionalCost       Decimal                 @db.Decimal(18, 4)
+  discount             Decimal                 @db.Decimal(18, 4)
+  total                Decimal                 @db.Decimal(18, 4)
+  minimumMarginPercent Decimal                 @db.Decimal(7, 4)
+  actualMarginPercent  Decimal                 @db.Decimal(7, 4)
+  validUntil           DateTime
+  approvedByUserId     String?
+  approvedBy           User?                   @relation("ProposalApprover", fields: [approvedByUserId], references: [id], onDelete: SetNull)
+  approvedAt           DateTime?
+  sentAt               DateTime?
+  createdByUserId      String
+  createdBy            User                    @relation("ProposalCreator", fields: [createdByUserId], references: [id], onDelete: Restrict)
+  items                QuotationProposalItem[]
+  statusHistory        ProposalStatusHistory[]
+  createdAt            DateTime                @default(now())
+  updatedAt            DateTime                @updatedAt
+
+  @@unique([organizationId, proposalNumber])
+  @@unique([quotationRequestId, version])
+  @@index([organizationId, status])
+  @@index([quotationRequestId])
+  @@index([createdByUserId])
+  @@index([createdAt])
+}
+
+model QuotationProposalItem {
+  id                String            @id @default(cuid())
+  proposalId        String
+  proposal          QuotationProposal @relation(fields: [proposalId], references: [id], onDelete: Cascade)
+  quotationItemId   String
+  quotationItem     QuotationItem     @relation(fields: [quotationItemId], references: [id], onDelete: Restrict)
+  materialId        String
+  material          Material          @relation(fields: [materialId], references: [id], onDelete: Restrict)
+  supplierId        String?
+  supplier          Supplier?         @relation(fields: [supplierId], references: [id], onDelete: SetNull)
+  quantity          Decimal           @db.Decimal(12, 3)
+  unitCost          Decimal           @db.Decimal(18, 4)
+  logisticsCost     Decimal           @db.Decimal(18, 4)
+  taxCost           Decimal           @db.Decimal(18, 4)
+  additionalCost    Decimal           @db.Decimal(18, 4)
+  minimumUnitPrice  Decimal           @db.Decimal(18, 4)
+  proposedUnitPrice Decimal           @db.Decimal(18, 4)
+  totalCost         Decimal           @db.Decimal(18, 4)
+  totalPrice        Decimal           @db.Decimal(18, 4)
+  marginPercent     Decimal           @db.Decimal(7, 4)
+  createdAt         DateTime          @default(now())
+  updatedAt         DateTime          @updatedAt
+
+  @@unique([proposalId, quotationItemId])
+  @@index([materialId])
+  @@index([supplierId])
+}
+
+model QuotationStatusHistory {
+  id                 String           @id @default(cuid())
+  quotationRequestId String
+  quotationRequest   QuotationRequest @relation(fields: [quotationRequestId], references: [id], onDelete: Restrict)
+  previousStatus     QuotationStatus?
+  newStatus          QuotationStatus
+  changedByUserId    String?
+  changedBy          User?            @relation(fields: [changedByUserId], references: [id], onDelete: SetNull)
+  reason             String?
+  metadata           Json?
+  createdAt          DateTime         @default(now())
+
+  @@index([quotationRequestId, createdAt])
+  @@index([changedByUserId])
+}
+
+model ProposalStatusHistory {
+  id              String            @id @default(cuid())
+  proposalId      String
+  proposal        QuotationProposal @relation(fields: [proposalId], references: [id], onDelete: Restrict)
+  previousStatus  ProposalStatus?
+  newStatus       ProposalStatus
+  changedByUserId String?
+  changedBy       User?             @relation(fields: [changedByUserId], references: [id], onDelete: SetNull)
+  reason          String?
+  metadata        Json?
+  createdAt       DateTime          @default(now())
+
+  @@index([proposalId, createdAt])
+  @@index([changedByUserId])
+}

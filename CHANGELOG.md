@@ -38,3 +38,15 @@ Todas as mudanças relevantes serão documentadas neste arquivo, seguindo Keep a
 ### Security
 
 - Minimização de dados do paciente, checks de integridade, exclusão lógica e auditoria com snapshots JSON sem segredos.
+
+## [Unreleased] — Estabilização do Módulo 2
+
+### Changed
+
+- Centralizado o acesso de autenticação, sessão e auditoria em um contrato de repository com implementação Prisma injetada no composition root.
+- Removido o acesso direto ao Prisma de páginas e services de autenticação/identidade.
+- Removida da homologação assistida qualquer exigência de email ou senha da conta Google; OAuth continua exclusivamente manual e protegido pelo provedor.
+
+### Removed
+
+- Barrels vazios dos domínios Authentication e Audit que não expunham tipos, validators ou comportamento.

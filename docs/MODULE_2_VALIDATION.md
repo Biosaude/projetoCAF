@@ -24,6 +24,8 @@ Automatizar credenciais Google com email e senha é frágil e pode violar MFA, C
 8. promover um Administrador pelo script controlado e validar RBAC/auditoria;
 9. nunca anexar tokens, cookies, senhas ou secrets às evidências.
 
+A workflow não recebe, armazena nem digita email ou senha da conta Google. O revisor autentica diretamente na interface oficial do provedor durante a homologação assistida.
+
 ## Content-Security-Policy
 
 CSP permanece pendente. Ela deve ser validada com nonces/hashes do Next.js, endpoints Auth.js, imagens do Google e callbacks OAuth. Não foi adicionada uma política permissiva ou não testada apenas para satisfazer checklist.

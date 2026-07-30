@@ -112,6 +112,8 @@ O modelo `Session` permanece disponível para uma futura decisão por sessões p
 
 `.github/workflows/e2e-auth.yml` é manual e recebe secrets do ambiente protegido `auth-homologation`. Ela não digita senha Google nem tenta contornar CAPTCHA ou MFA. A homologação OAuth é manual assistida: um revisor valida consentimento, callback, criação de `User`/`Account`, perfil Visualizador, Dashboard, logout e bloqueios de status no ambiente de teste, registrando evidências sem copiar tokens, cookies ou secrets.
 
+A workflow assistida não solicita nem armazena email ou senha de uma conta Google; somente as credenciais OAuth da aplicação e a configuração do ambiente de teste são secrets do GitHub.
+
 ## Limitações conhecidas
 
 - OAuth Google real ainda deve ser homologado com credenciais e banco exclusivos de teste.

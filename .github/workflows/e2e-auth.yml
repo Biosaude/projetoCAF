@@ -28,11 +28,8 @@ jobs:
           cache: npm
       - name: Require homologation secrets without printing values
         shell: bash
-        env:
-          TEST_GOOGLE_EMAIL: ${{ secrets.TEST_GOOGLE_EMAIL }}
-          TEST_GOOGLE_PASSWORD: ${{ secrets.TEST_GOOGLE_PASSWORD }}
         run: |
-          required=(DATABASE_URL AUTH_SECRET AUTH_URL GOOGLE_CLIENT_ID GOOGLE_CLIENT_SECRET TEST_GOOGLE_EMAIL TEST_GOOGLE_PASSWORD)
+          required=(DATABASE_URL AUTH_SECRET AUTH_URL GOOGLE_CLIENT_ID GOOGLE_CLIENT_SECRET)
           for variable in "${required[@]}"; do
             test -n "${!variable}" || { echo "Missing required secret: ${variable}"; exit 1; }
           done
@@ -53,5 +50,6 @@ jobs:
           {
             echo '## Google OAuth assisted homologation'
             echo 'Automated username/password entry is intentionally not performed.'
+            echo 'No Google account password is requested or stored by this workflow.'
             echo 'A reviewer must validate consent, callback, MFA/CAPTCHA, first access, Account persistence, role assignment, logout and blocked statuses using the protected test environment.'
           } >> "$GITHUB_STEP_SUMMARY"

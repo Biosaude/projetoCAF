@@ -11,6 +11,7 @@ import { UserProvisioningService } from "@/features/authentication/services/user
 import { prisma } from "@/lib/db/prisma";
 import { logger } from "@/services";
 import { canUserSignIn } from "@/features/authentication/services/rbac.service";
+import { authenticationRepository } from "@/features/authentication/config/auth.dependencies";
 
 export const { handlers, auth, signIn, signOut } = NextAuth({
   ...authConfig,
@@ -21,32 +22,23 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
       const allowed = canUserSignIn(user.status);
       if (!allowed && user.id) {
         const context = await getRequestContext();
-        await prisma.auditLog.create({
-          data: {
-            action: "ACCESS_DENIED",
-            entity: "User",
-            entityId: user.id,
-            userId: user.id,
-            ipAddress: context.ipAddress,
-            userAgent: context.userAgent,
-            metadata: { reason: `USER_${user.status}` },
-          },
+        await authenticationRepository.recordAccessDenied({
+          userId: user.id,
+          entity: "User",
+          entityId: user.id,
+          reason: `USER_${user.status}`,
+          ipAddress: context.ipAddress,
+          userAgent: context.userAgent,
         });
       }
       return allowed;
     },
     async jwt({ token, user }) {
       if (user?.id) {
-        const persistedUser = await prisma.user.findUnique({
-          where: { id: user.id },
-          select: {
-            status: true,
-            roles: { select: { role: { select: { key: true } } } },
-          },
-        });
+        const persistedUser =
+          await authenticationRepository.findAccessProfile(user.id);
         token.status = persistedUser?.status as UserStatus | undefined;
-        token.roles =
-          persistedUser?.roles.map(({ role }) => role.key as RoleKey) ?? [];
+        token.roles = persistedUser?.roles as RoleKey[] | undefined;
       }
       return token;
     },
@@ -62,45 +54,23 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
     async signIn({ user, account }) {
       if (!user.id) return;
       const context = await getRequestContext();
-      await prisma.$transaction([
-        prisma.user.update({
-          where: { id: user.id },
-          data: {
-            lastLoginAt: new Date(),
-            lastLoginIp: context.ipAddress,
-            lastLoginUserAgent: context.userAgent,
-            lastLoginBrowser: context.browser,
-            lastLoginOs: context.os,
-            lastLoginProvider: account?.provider,
-          },
-        }),
-        prisma.auditLog.create({
-          data: {
-            action: "LOGIN",
-            entity: "User",
-            entityId: user.id,
-            userId: user.id,
-            ipAddress: context.ipAddress,
-            userAgent: context.userAgent,
-            metadata: { provider: account?.provider ?? "unknown" },
-          },
-        }),
-      ]);
+      await authenticationRepository.recordLogin({
+        userId: user.id,
+        ipAddress: context.ipAddress,
+        userAgent: context.userAgent,
+        browser: context.browser,
+        operatingSystem: context.os,
+        provider: account?.provider,
+      });
     },
     async signOut(message) {
       const userId =
         "token" in message ? message.token?.sub : message.session?.userId;
       if (!userId) return;
       const context = await getRequestContext();
-      await prisma.auditLog.create({
-        data: {
-          action: "LOGOUT",
-          entity: "User",
-          entityId: userId,
-          userId,
-          ipAddress: context.ipAddress,
-          userAgent: context.userAgent,
-        },
+      await authenticationRepository.recordLogout(userId, {
+        ipAddress: context.ipAddress,
+        userAgent: context.userAgent,
       });
     },
   },

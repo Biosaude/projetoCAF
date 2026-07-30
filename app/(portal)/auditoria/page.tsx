@@ -1,8 +1,6 @@
 import { requireAdministrator } from "@/features/authentication/services/authorization.service";
 import { AuditView } from "@/features/audit/components/audit-view";
-import { PrismaAuditRepository } from "@/features/audit/repositories/prisma-audit.repository";
-import { AuditService } from "@/features/audit/services/audit.service";
-import { prisma } from "@/lib/db/prisma";
+import { auditService } from "@/features/audit/config/audit.dependencies";
 
 export const metadata = { title: "Auditoria" };
 export default async function AuditPage({
@@ -12,8 +10,6 @@ export default async function AuditPage({
 }) {
   await requireAdministrator();
   const { userId } = await searchParams;
-  const records = await new AuditService(
-    new PrismaAuditRepository(prisma),
-  ).list(userId);
+  const records = await auditService.list(userId);
   return <AuditView records={records} />;
 }
